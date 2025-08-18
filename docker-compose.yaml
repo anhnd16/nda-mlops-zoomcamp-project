@@ -31,6 +31,28 @@ services:
         condition: service_started
     networks:
       - my_network
+
+  serving:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.serving
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_MODEL_NAME=${MLFLOW_MODEL_NAME}
+      - GCS_BUCKET=${GCS_BUCKET}
+      - GCS_BLOB=${GCS_BLOB}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/sa_key.json
+    volumes:
+      - ./:/app
+      - ./secrets/sa_key.json:/secrets/sa_key.json:ro
+      - ./mlruns:/mlartifacts
+    depends_on:
+      mlflow:
+        condition: service_started
+    ports: ["8080:8080"]
+    networks:
+      - my_network
   
   postgres:
     image: postgres:15

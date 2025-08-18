@@ -4,18 +4,22 @@ from sklearn.preprocessing import OneHotEncoder
 
 TARGET = "income"
 CAT = [
-    "workclass","education","marital-status","occupation","relationship","race","sex","native-country",
+    "workclass","education","marital_status","occupation","relationship","race","sex","native_country",
 ]
-NUM = ["age","fnlwgt","education-num","capital-gain","capital-loss","hours-per-week"]
+NUM = ["age","fnlwgt","education_num","capital_gain","capital_loss","hours_per_week"]
 
 
 def clean(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
-    out[TARGET] = (out[TARGET].astype(str).str.strip() == ">50K").astype(int)
+    # normalize column names
+    out.rename(columns=lambda col: col.replace('-','_'), inplace=True) 
+    # Remove outlier values
+    out[TARGET] = (out[TARGET].astype(str).str.strip() == ">50K").astype(int) 
     return out
 
 
 def build_preprocessor() -> ColumnTransformer:
+    # Column encoding
     return ColumnTransformer([
         ("cat", OneHotEncoder(handle_unknown="ignore"), CAT),
         ("num", "passthrough", NUM),
