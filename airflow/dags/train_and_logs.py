@@ -13,7 +13,7 @@ from src.models.train import main as train_main
 
 with DAG(
     dag_id="train_and_log",
-    start_date=datetime(2024, 1, 1),
+    start_date=datetime(2025, 1, 1),
     schedule_interval="@daily",
     catchup=False,
     tags=["mlops", "adult"],

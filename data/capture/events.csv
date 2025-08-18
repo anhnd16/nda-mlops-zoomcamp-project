@@ -1,0 +1,2 @@
+age,capital_gain,capital_loss,education,education_num,fnlwgt,hours_per_week,marital_status,native_country,occupation,prediction,race,relationship,sex,ts,workclass
+31,0,0,Doctorate,16,117963,40,Never-married,United-States,Prof-specialty,0.0,White,Own-child,Male,1755541716,Self-emp-inc

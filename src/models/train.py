@@ -36,18 +36,19 @@ def _log_confusion_matrix(y_true, y_pred, out_dir: str = "artifacts"):
     mlflow.log_artifact(str(fig_path), artifact_path="plots")
 
 
-def main():
+def train_model():
     # Load environment variables from .env file
     if load_dotenv(): 
         print("Loaded .env file.")
-    
-    # Optional: respect a user-provided tracking URI, else default local ./mlruns
+
     if os.getenv("MLFLOW_TRACKING_URI"):
         mlflow.set_tracking_uri(os.environ["MLFLOW_TRACKING_URI"])
 
     mlflow.set_experiment(EXP_NAME)
 
     with mlflow.start_run() as run:
+        run_id = run.info.run_id
+        
         # Load & clean
         raw = load_adult(to_csv=True)
         df = clean(raw)
@@ -99,7 +100,10 @@ def main():
         mlflow.log_artifact(str(outp / "test.csv"), artifact_path="data")
 
         print({"auroc": round(float(auroc), 4), "f1": round(float(f1), 4)})
+        return pipe, run.data.metrics, run_id
 
+def main():
+    model, metrics, run_id = train_model()
 
 if __name__ == "__main__":
     from time import sleep
