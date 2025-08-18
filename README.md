@@ -41,10 +41,10 @@ The project covers:
 │  ├─ serving/
 │  │  └─ app.py                      # FastAPI serving + request capture
 │  ├─ monitoring/
-│  │  ├─ evidently_run.py            # Run Evidently drift report
-│  │  ├─ make_windows.py             # Build current window dataset
-│  │  └─ __init__.py
+│  │  ├─ drift_check.py              # Run Evidently drift report
+│  │  └─ make_windows.py             # Build current window dataset
 ├─ data/                             # Data splits, captures, reports
+│  ├─ raw/
 │  ├─ splits/
 │  ├─ capture/
 │  └─ reports/
@@ -59,7 +59,7 @@ The project covers:
 ```
             ┌────────────┐      track/register      ┌──────────────┐
 raw data ──▶│  training  │─────────────────────────▶│   MLflow     │
-            │  pipeline  │                          │  Tracking &  │
+(GCS)       │  pipeline  │                          │  Tracking &  │
             └─────┬──────┘                          │   Registry   │
                   │                                 └──────────────┘
                   │ register prod model URI
@@ -111,13 +111,16 @@ raw data ──▶│  training  │──────────────�
 - Registers new version in MLflow Model Registry.
 - Placeholder deploy step (can be extended to redeploy FastAPI container or Cloud Run service).
 
+### Phase 4 - Cloud deployment
+- Deploy the components (Airflow, MLflow, training, serving, postgres) to an GCE VM.
+
 ---
 
 ## Setup Guide
 
 ### Prerequisites
 - Docker & Docker Compose
-- Python 3.10+
+- Python 3.10+ (prefer 3.12+)
 - A created project on GCP
 - GCP bucket containing the Adult Income dataset
 - Service account key JSON file
@@ -147,6 +150,7 @@ GOOGLE_APPLICATION_CREDENTIALS=/secrets/sa.json
 ```bash
 docker compose up -d postgres mlflow airflow
 ```
+Local access:
 - MLflow UI → http://localhost:5000
 - Airflow UI → http://localhost:8081 (user: admin / password: admin)
 - FastAPI service → http://localhost:8080/predict
@@ -191,6 +195,42 @@ airflow dags trigger monitor_and_retrain
 ```
 3. Open `data/reports/evidently_report.html` for drift dashboard.
 4. If drift detected → `train_register_deploy` DAG runs to retrain & register.
+
+### Deploy docker-compose on a GCE VM
+
+1. **Create VM** (e.g., Ubuntu 22.04, `e2-standard-2`) and allow HTTP/HTTPS.
+2. **SSH in and install Docker & Compose**:
+   ```bash
+   sudo apt-get update && sudo apt-get install -y ca-certificates curl gnupg
+   sudo install -m 0755 -d /etc/apt/keyrings
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+   echo \
+     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+     https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
+     | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+   sudo apt-get update && sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+   sudo usermod -aG docker $USER  # log out/in after this
+   ```
+3. **Clone repo & set env**:
+   ```bash
+   git clone https://github.com/anhnd16/nda-mlops-zoomcamp-project.git mlops-adult && cd mlops-adult
+   cp .env.example .env  # or create .env
+   # Set GCS + MLflow vars inside .env as documented above
+   ```
+4. **Open firewall (if needed)**: allow port **5000** (MLflow), **8081** (Airflow), **8080** (FastAPI). 
+
+5. **Create a public external IP address** and assign to the VM.
+
+6. **Start services**:
+   ```bash
+   docker compose up -d postgres mlflow airflow
+   # optional: also bring up serving
+   docker compose up -d serving
+   ```
+7. **Access**:
+   - MLflow → `http://<VM_EXTERNAL_IP>:5000`
+   - Airflow → `http://<VM_EXTERNAL_IP>:8081`
+   - FastAPI → `http://<VM_EXTERNAL_IP>:8080`
 
 ---
 
