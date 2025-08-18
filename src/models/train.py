@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from dotenv import load_dotenv
 
-from data.ingest import load_adult
-from data.preprocess import clean, build_preprocessor, TARGET
+from src.data.ingest import load_adult
+from src.data.preprocess import clean, build_preprocessor, TARGET
 
 
 
@@ -102,4 +102,7 @@ def main():
 
 
 if __name__ == "__main__":
+    from time import sleep
+    # sleep(30)
     main()
+    

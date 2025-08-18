@@ -1,0 +1,90 @@
+version: "3.8"
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.22.1
+    command: |
+      bash -c "
+          mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlartifacts
+      "
+    ports: ["5000:5000"]
+    volumes:
+      - ./mlruns:/mlartifacts
+    networks:
+      - my_network
+
+  train:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.train
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - GCS_BUCKET=${GCS_BUCKET}
+      - GCS_BLOB=${GCS_BLOB}
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID}
+      - GOOGLE_APPLICATION_CREDENTIALS=/secrets/sa_key.json
+    volumes:
+      - ./:/app
+      - ./secrets/sa_key.json:/secrets/sa_key.json:ro
+      - ./mlruns:/mlartifacts
+    depends_on:
+      mlflow:
+        condition: service_started
+    networks:
+      - my_network
+  
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - airflow-db:/var/lib/postgresql/data
+    networks:
+      - my_network
+
+  airflow:
+    image: apache/airflow:2.9.3-python3.12
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mlflow:
+        condition: service_started
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      _PIP_ADDITIONAL_REQUIREMENTS: "-r /opt/airflow/requirements.txt"
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      GCS_BUCKET: ${GCS_BUCKET}
+      GCS_BLOB: ${GCS_BLOB}
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID}
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/sa_key.json
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/requirements.txt:/opt/airflow/requirements.txt
+      - ./:/app
+      - ./secrets/sa_key.json:/secrets/sa_key.json:ro
+      - ./mlruns:/mlartifacts
+    command: >
+      bash -lc "
+        pip install -r /opt/airflow/requirements.txt &&
+        airflow db upgrade && 
+        airflow users create --username airflow --firstname Airflow --lastname Admin --role Admin --email admin@example.com --password airflow &&
+        airflow webserver & airflow scheduler
+      "
+    ports: ["8081:8080"]
+    networks:
+      - my_network
+
+volumes:
+  airflow-db:
+
+networks:
+  my_network:

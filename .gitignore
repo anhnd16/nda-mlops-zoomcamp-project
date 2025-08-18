@@ -7,5 +7,5 @@ artifacts/
 mlruns/
 **/*/__pycache__
 
-gcp_credentials.json
+sa_key.json
 mlflow.db
