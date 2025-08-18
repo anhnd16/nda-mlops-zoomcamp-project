@@ -1,5 +1,11 @@
 mlops-zc/
 data/raw/
-gcp_credentials.json
+data/splits/
 
-create/
+
+artifacts/
+mlruns/
+**/*/__pycache__
+
+gcp_credentials.json
+mlflow.db

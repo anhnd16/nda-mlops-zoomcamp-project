@@ -5,6 +5,10 @@ from typing import Optional
 
 import pandas as pd
 from google.cloud import storage
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Column schema for the classic Adult Income dataset (UCI)
 COLUMNS = [
@@ -49,6 +53,7 @@ def load_adult_from_gcs(
 
     If your object already contains headers, set has_header=True.
     """
+    load_dotenv()
     project = project or os.getenv("GCP_PROJECT_ID", None) or GCP_PROJECT_ID
     bucket = bucket or os.getenv("GCS_BUCKET")
     blob_name = blob_name or os.getenv("GCS_BLOB")
@@ -56,7 +61,9 @@ def load_adult_from_gcs(
     if not bucket or not blob_name:
         raise ValueError("bucket and blob_name are required (or set GCS_BUCKET and GCS_BLOB env vars)")
 
+    print(f"Downloading data from GCS bucket '{bucket}'...")
     raw_bytes = _download_gcs_bytes(bucket, blob_name, project)
+    print("Downloading completed. Saving to csv file...")
     header = 0 if has_header else None
     df = pd.read_csv(io.BytesIO(raw_bytes), header=header, names=None if has_header else COLUMNS, na_values="?", skipinitialspace=True)
 
@@ -64,6 +71,7 @@ def load_adult_from_gcs(
         path = Path(out_dir)
         path.mkdir(parents=True, exist_ok=True)
         df.to_csv(path / fname, index=False)
+    print("✅ Ingest data completed!")
     return df
 
 
