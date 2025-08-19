@@ -152,8 +152,8 @@ docker compose up -d postgres mlflow airflow
 ```
 Local access:
 - MLflow UI → http://localhost:5000
-- Airflow UI → http://localhost:8081 (user: admin / password: admin)
-- FastAPI service → http://localhost:8080/predict
+- Airflow UI → http://localhost:8081 (user: admin@example.com / password: airflow)
+- FastAPI service → http://localhost:8080/
 
 ### Train Model
 ```bash
@@ -169,26 +169,31 @@ Send request:
 ```bash
 curl -X POST http://localhost:8080/predict \
   -H 'Content-Type: application/json' \
-  -d '{
-    "age": 39,
-    "workclass": "State-gov",
-    "education": "Bachelors",
-    "education_num": 13,
+  -d  '{
+    "age": 31,
+    "workclass": "Self-emp-inc",
+    "fnlwgt": 117963,
+    "education": "Doctorate",
+    "education_num": 16,
     "marital_status": "Never-married",
-    "occupation": "Adm-clerical",
-    "relationship": "Not-in-family",
+    "occupation": "Prof-specialty",
+    "relationship": "Own-child",
     "race": "White",
     "sex": "Male",
-    "capital_gain": 2174,
+    "capital_gain": 0,
     "capital_loss": 0,
     "hours_per_week": 40,
     "native_country": "United-States",
-    "fnlwgt": 77516
-  }'
+    "income": 0
+}'
 ```
 
 ### Monitor & Retrain
-1. Generate prediction traffic (see curl above).
+1. Generate prediction traffic. Simulate inference data with scripts:
+```
+
+```
+
 2. Trigger monitoring DAG:
 ```bash
 airflow dags trigger monitor_and_retrain
@@ -199,6 +204,16 @@ airflow dags trigger monitor_and_retrain
 ### Deploy docker-compose on a GCE VM
 
 1. **Create VM** (e.g., Ubuntu 22.04, `e2-standard-2`) and allow HTTP/HTTPS.
+   ````bash
+   gcloud compute instances create my-vm \
+   --zone=asia-southeast1-a \
+   --machine-type=e2-standard-2 \
+   --image-family=ubuntu-2204-lts \
+   --image-project=ubuntu-os-cloud \
+   --network-interface=network-tier=PREMIUM,subnet=default,access-config=natIP=$(gcloud compute addresses describe my-static-ip --region=asia-southeast1 --format="get(address)")
+
+   ````
+
 2. **SSH in and install Docker & Compose**:
    ```bash
    sudo apt-get update && sudo apt-get install -y ca-certificates curl gnupg
@@ -219,7 +234,7 @@ airflow dags trigger monitor_and_retrain
    ```
 4. **Open firewall (if needed)**: allow port **5000** (MLflow), **8081** (Airflow), **8080** (FastAPI). 
 
-5. **Create a public external IP address** and assign to the VM.
+5. **Create a public external IP address** and assign to the VM (from above command).
 
 6. **Start services**:
    ```bash
